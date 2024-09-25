@@ -258,7 +258,6 @@ void Logcat::EnsureLogWatchDog() {
     constexpr static auto kLogdTagProp = "persist.log.tag"sv;
     constexpr static auto kLogdMainSizeProp = "persist.logd.size.main"sv;
     constexpr static auto kLogdCrashSizeProp = "persist.logd.size.crash"sv;
-    constexpr static size_t kErr = -1;
     std::thread watch_dog([this] {
         while (true) {
             enable_watchdog.wait(false);
@@ -266,15 +265,27 @@ void Logcat::EnsureLogWatchDog() {
             auto logd_tag = GetStrProp(kLogdTagProp);
             auto logd_main_size = GetByteProp(kLogdMainSizeProp);
             auto logd_crash_size = GetByteProp(kLogdCrashSizeProp);
-            if (!logd_tag.empty() ||
-                !((logd_main_size == kErr && logd_crash_size == kErr && logd_size != kErr &&
-                   logd_size >= kLogBufferSize) ||
-                  (logd_main_size != kErr && logd_main_size >= kLogBufferSize &&
-                   logd_crash_size != kErr && logd_crash_size >= kLogBufferSize))) {
-                SetIntProp(kLogdSizeProp, std::max(kLogBufferSize, logd_size));
-                SetIntProp(kLogdMainSizeProp, std::max(kLogBufferSize, logd_main_size));
-                SetIntProp(kLogdCrashSizeProp, std::max(kLogBufferSize, logd_crash_size));
+            bool needs_reset = false;
+            if (__system_property_find(kLogdSizeProp.data()) != nullptr &&
+                logd_size <= kLogBufferSize) {
+                SetIntProp(kLogdSizeProp, kLogBufferSize);
+                needs_reset = true;
+            }
+            if (__system_property_find(kLogdMainSizeProp.data()) != nullptr &&
+                logd_main_size <= kLogBufferSize) {
+                SetIntProp(kLogdMainSizeProp, kLogBufferSize);
+                needs_reset = true;
+            }
+            if (__system_property_find(kLogdCrashSizeProp.data()) != nullptr &&
+                logd_crash_size <= kLogBufferSize) {
+                SetIntProp(kLogdCrashSizeProp, kLogBufferSize);
+                needs_reset = true;
+            }
+            if (__system_property_find(kLogdTagProp.data()) != nullptr) {
                 SetStrProp(kLogdTagProp, "");
+                needs_reset = true;
+            }
+            if (needs_reset) {
                 SetStrProp("ctl.start", "logd-reinit");
             }
             const auto *pi = __system_property_find(kLogdTagProp.data());
@@ -285,11 +296,11 @@ void Logcat::EnsureLogWatchDog() {
                     &serial);
             }
             if (!__system_property_wait(pi, serial, &serial, nullptr)) break;
-            if (pi != nullptr) {
-                if (enable_watchdog) Log("\nResetting log settings\n");
-            } else
+            if (pi != nullptr && enable_watchdog)
+                Log("\nResetting log settings\n");
+            else
+                // log tag prop was not found; to avoid frequently trigger wait, sleep for a while
                 std::this_thread::sleep_for(1s);
-            // log tag prop was not found; to avoid frequently trigger wait, sleep for a while
         }
     });
     pthread_setname_np(watch_dog.native_handle(), "watchdog");

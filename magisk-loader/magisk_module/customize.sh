@@ -156,4 +156,11 @@ if [ "$(grep_prop ro.maple.enable)" == "1" ] && [ "$FLAVOR" == "zygisk" ]; then
   echo "ro.maple.enable=0" >> "$MODPATH/system.prop"
 fi
 
+# Remove props that used to exist in prior versions
+ui_print "- Removing obsolete props"
+resetprop -p -d persist.logd.size
+resetprop -p -d persist.logd.size.main
+resetprop -p -d persist.logd.size.crash
+resetprop -p -d persist.log.tag
+
 ui_print "- Welcome to LSPosed!"
