@@ -72,6 +72,9 @@ fi
 ui_print "- Extracting module files"
 
 extract "$ZIPFILE" 'module.prop'        "$MODPATH"
+if [ "$MAGISK_VER_CODE" ]; then
+  extract "$ZIPFILE" 'action.sh'          "$MODPATH"
+fi
 extract "$ZIPFILE" 'post-fs-data.sh'    "$MODPATH"
 extract "$ZIPFILE" 'service.sh'         "$MODPATH"
 extract "$ZIPFILE" 'uninstall.sh'       "$MODPATH"

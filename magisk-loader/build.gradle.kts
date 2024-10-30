@@ -177,7 +177,7 @@ fun afterEval() = android.applicationVariants.forEach { variant ->
         into(magiskDir)
         from("${rootProject.projectDir}/README.md")
         from("$projectDir/magisk_module") {
-            exclude("module.prop", "customize.sh", "daemon")
+            exclude("module.prop", "action.sh", "customize.sh", "daemon")
         }
         from("$projectDir/magisk_module") {
             include("module.prop")
@@ -193,6 +193,15 @@ fun afterEval() = android.applicationVariants.forEach { variant ->
                 },
                 "api" to flavorCapped,
             )
+            filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
+        }
+        from("$projectDir/magisk_module") {
+            include("action.sh")
+            val tokens = mapOf(
+                "DEFAULT_MANAGER_PACKAGE_NAME" to defaultManagerPackageName,
+                "INJECTED_PACKAGE_NAME" to injectedPackageName,
+            )
+            filter<ReplaceTokens>("tokens" to tokens)
             filter<FixCrLfFilter>("eol" to FixCrLfFilter.CrLf.newInstance("lf"))
         }
         from("$projectDir/magisk_module") {
